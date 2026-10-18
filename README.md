@@ -22,6 +22,20 @@ A mutual-fund tracker for Indian investors. It shows your current holdings with 
 4. Go to **Actions → "Build NAVs and deploy to GitHub Pages" → Run workflow** (only needed if the first run failed because Pages wasn't enabled yet).
 5. Your site is at `https://<you>.github.io/<repo>/`. On your phone, open it and use **Share → Add to Home Screen**.
 
+## Google sign-in + Drive sync (optional)
+
+When you sign in, your data is kept in `portfolio-tracker-data.json` in your own Google Drive, so every device you sign in on shares it. The app uses the `drive.file` scope, so it can only see files it created. One-time setup:
+
+1. Go to https://console.cloud.google.com/ and create a project (e.g. "Portfolio Tracker").
+2. **APIs & Services → Library**: search for **Google Drive API** and click **Enable**.
+3. **Google Auth Platform → Branding** (the OAuth consent screen): enter an app name and your email, and choose audience **External**.
+4. **Audience → Test users**: add your Gmail address.
+5. **Data access → Add scopes**: add `.../auth/drive.file`.
+6. **Clients → Create client → Web application**. Under **Authorized JavaScript origins**, add `https://<you>.github.io` and `http://localhost:8765`. No redirect URIs are needed.
+7. Copy the client ID (`….apps.googleusercontent.com`) into `site/config.js`, then commit and push.
+
+Google tokens last 1 hour. After that, the header shows **Sync with Drive**, and one tap reconnects you.
+
 ## Run locally
 
 ```bash
@@ -59,6 +73,8 @@ Losses are set off the way the tax return does it: short-term losses against any
 ```
 site/engine.js           FIFO ledger, tax set-off, harvesting suggestions, report (pure functions)
 site/app.js              UI, localStorage, NAV fetching, backup/restore
+site/drive.js            Google sign-in + Drive file sync
+site/config.js           Google client ID
 scripts/build_navs.py    AMFI → navs.json (run by the workflow)
 tracker/nav.py           AMFI parser + fund tax classification
 tests/                   browser test runner for engine.js
