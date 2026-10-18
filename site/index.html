@@ -15,6 +15,7 @@
       <p class="muted" id="asof">Loading…</p>
     </div>
     <div class="top-actions">
+      <div id="sync" class="sync"></div>
       <button id="refresh" class="ghost">Refresh NAVs</button>
     </div>
   </header>
@@ -55,10 +56,11 @@
         <p id="import-msg"></p>
       </div>
       <div class="panel">
-        <h2>Your data lives in this browser</h2>
-        <p class="muted">Nothing is uploaded anywhere. Each device keeps its own copy, so to move data between
-          your laptop and phone, download a backup on one and restore it on the other. Browsers (especially Safari)
-          can clear site data you haven't opened in a while, so keep a recent backup.</p>
+        <h2>Where your data lives</h2>
+        <p class="muted">Your data is saved in this browser. <b>Sign in with Google</b> (top of the page) to also keep it in a
+          file in your own Google Drive (<code>portfolio-tracker-data.json</code>), so every device you sign in on shares
+          the same data. The site can only see files it created, nothing else in your Drive, and nothing goes to any other server.
+          Without signing in, use backup/restore to move data between devices.</p>
         <div class="row">
           <button id="backup-btn">Download backup</button>
           <button id="restore-btn" class="ghost">Restore backup</button>

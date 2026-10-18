@@ -1,6 +1,7 @@
 import {
   DEFAULT_SETTINGS, LedgerError, buildReport, codesNeedingFmv, parseCsv, sortTxns, toCsv, todayISO, GRANDFATHER_DATE,
 } from "./engine.js";
+import { createDriveSync } from "./drive.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -311,6 +312,7 @@ async function saveSettings(e) {
     if (el.value) s.tax_class_overrides[el.dataset.override] = el.value;
   });
   store.set(KEYS.settings, s);
+  drive.changed();
   await compute();
   showTab("settings");
   $("#settings-msg").textContent = "Saved.";
@@ -335,6 +337,7 @@ function importCsv(text, mode) {
   // Replay before saving so an oversell or bad row never corrupts stored data.
   buildReport({ txns: all, schemes, settings: loadSettings() });
   saveTxns(all);
+  drive.changed();
   return fresh.length;
 }
 
@@ -385,14 +388,17 @@ $("#restore-file").addEventListener("change", async (e) => {
     if (loadTxns().length && !confirm("Replace the data in this browser with the backup?")) return;
     saveTxns(sortTxns(data.transactions));
     if (data.settings) store.set(KEYS.settings, data.settings);
+    drive.changed();
     msg.innerHTML = `<span class="pos">Restored ${data.transactions.length} transactions.</span>`;
     await compute({ refresh: true });
   } catch (err) { msg.innerHTML = `<span class="neg">${esc(err.message)}</span>`; }
   e.target.value = "";
 });
 $("#clear-btn").addEventListener("click", async () => {
-  if (!confirm("Delete all transactions and settings from this browser? Download a backup first if you need it.")) return;
+  const where = drive.signedIn ? "this browser AND your Google Drive copy" : "this browser";
+  if (!confirm(`Delete all transactions and settings from ${where}? Download a backup first if you need it.`)) return;
   Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+  drive.changed();
   await compute();
   $("#data-msg").textContent = "All data deleted from this browser.";
 });
@@ -414,7 +420,39 @@ $("#search").addEventListener("input", (e) => {
   }, 200);
 });
 
+// ---------- Google Drive sync ----------
+const snapshot = () => ({ version: 1, updated: new Date().toISOString(), transactions: loadTxns(), settings: loadSettings() });
+const drive = createDriveSync({
+  getSnapshot: snapshot,
+  async applySnapshot(snap) {
+    saveTxns(sortTxns(snap.transactions || []));
+    if (snap.settings) store.set(KEYS.settings, snap.settings);
+    await compute();
+  },
+  onStatus: renderSync,
+});
+
+function renderSync({ kind, detail, email }) {
+  const el = $("#sync");
+  const who = email ? `<span class="muted sync-email">${esc(email)}</span>` : "";
+  el.innerHTML = {
+    off: "",
+    "signed-out": `<button id="g-in" class="ghost">Sign in with Google</button>`,
+    "needs-tap": `<button id="g-in" class="ghost">Sync with Drive</button>${who}`,
+    syncing: `<span class="muted">Syncing…</span>${who}`,
+    synced: `<span class="pos">✓ Synced to Drive</span>${who}<a href="#" id="g-out">Sign out</a>`,
+    error: `<button id="g-in" class="ghost">Retry sync</button><span class="neg sync-email">${esc(detail)}</span>`,
+  }[kind];
+  if (detail && kind !== "error") el.title = detail;
+  $("#g-in")?.addEventListener("click", () => drive.connect());
+  $("#g-out")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (confirm("Sign out of Google? Your data stays in Google Drive and on this device.")) drive.signOut();
+  });
+}
+
 (async () => {
+  drive.resume();
   await loadSchemes();
   await compute();
   if (!state?.summary.transactions) showTab("import");

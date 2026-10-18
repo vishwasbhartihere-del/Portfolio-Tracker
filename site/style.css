@@ -24,6 +24,10 @@ code { background: var(--chip); padding: 1px 5px; border-radius: 4px; font-size:
 .pos { color: var(--pos); } .neg { color: var(--neg); }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+.top-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.sync { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; font-size: 13px; }
+.sync a { color: var(--accent); }
+.sync-email { font-size: 12px; }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
 button, .button {
   font: inherit; font-weight: 600; border: 1px solid var(--accent); background: var(--accent); color: #fff;
@@ -102,6 +106,8 @@ footer { margin-top: 28px; font-size: 12px; }
   .hide-sm { display: none; }
   .show-sm { display: block; }
   .top h1 { font-size: 19px; }
+  .top { flex-wrap: wrap; }
+  .top-actions { justify-content: flex-start; }
   .panel { padding: 14px; }
   td, th { padding: 8px 6px; }
 }
