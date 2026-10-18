@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2557d6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Portfolio Tracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Portfolio Tracker</h1>
+      <p class="muted" id="asof">Loading…</p>
+    </div>
+    <div class="top-actions">
+      <button id="refresh" class="ghost">Refresh NAVs</button>
+    </div>
+  </header>
+
+  <div id="warnings"></div>
+
+  <section class="cards" id="cards"></section>
+
+  <nav class="tabs" role="tablist">
+    <button data-tab="holdings" class="active">Holdings</button>
+    <button data-tab="harvest">Tax harvesting</button>
+    <button data-tab="realized">Realised gains</button>
+    <button data-tab="import">Data</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section id="tab-holdings" class="tab active"></section>
+    <section id="tab-harvest" class="tab"></section>
+    <section id="tab-realized" class="tab"></section>
+    <section id="tab-import" class="tab">
+      <div class="panel">
+        <h2>Import transactions (CSV)</h2>
+        <p class="muted">One row per buy or sell. Columns: <code>date, scheme_code (or isin), type, units, nav</code>
+          (or <code>amount</code> instead of units/nav). Types: BUY, SIP, SWITCH_IN, REINVEST, SELL, REDEEM, SWITCH_OUT.</p>
+        <div class="drop" id="drop">
+          <input type="file" id="file" accept=".csv,text/csv,.json,application/json" hidden>
+          <p><strong>Drop a CSV here</strong> or <a href="#" id="pick">choose a file</a></p>
+        </div>
+        <textarea id="csv" rows="8" placeholder="date,scheme_code,type,units,nav
+2024-01-15,122639,BUY,150.5,66.42"></textarea>
+        <div class="row">
+          <label><input type="radio" name="mode" value="replace" checked> Replace all</label>
+          <label><input type="radio" name="mode" value="append"> Append</label>
+          <button id="import-btn">Import</button>
+          <button id="sample-btn" class="ghost">Load sample data</button>
+        </div>
+        <p id="import-msg"></p>
+      </div>
+      <div class="panel">
+        <h2>Your data lives in this browser</h2>
+        <p class="muted">Nothing is uploaded anywhere. Each device keeps its own copy, so to move data between
+          your laptop and phone, download a backup on one and restore it on the other. Browsers (especially Safari)
+          can clear site data you haven't opened in a while, so keep a recent backup.</p>
+        <div class="row">
+          <button id="backup-btn">Download backup</button>
+          <button id="restore-btn" class="ghost">Restore backup</button>
+          <button id="csv-btn" class="ghost">Download transactions CSV</button>
+          <button id="clear-btn" class="ghost danger">Delete all data</button>
+          <input type="file" id="restore-file" accept=".json,application/json" hidden>
+        </div>
+        <p id="data-msg"></p>
+      </div>
+      <div class="panel">
+        <h2>Find a scheme code</h2>
+        <input id="search" placeholder="e.g. parag parikh flexi direct growth">
+        <div class="table-wrap"><table class="compact"><tbody id="search-results"></tbody></table></div>
+      </div>
+    </section>
+    <section id="tab-settings" class="tab"></section>
+  </main>
+
+  <footer class="muted">Estimates only, based on Indian capital-gains rules for transfers after 23 Jul 2024
+    (surcharge ignored). Not tax or investment advice; verify with a CA before acting. NAVs: AMFI, mfapi.in.</footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
