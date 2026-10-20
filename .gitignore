@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .DS_Store
 site/navs.json
+site/stocks.json

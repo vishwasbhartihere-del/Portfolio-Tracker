@@ -1,14 +1,14 @@
 # Portfolio Tracker
 
-A mutual-fund tracker for Indian investors. It shows your current holdings with live NAVs and suggests tax-harvesting moves. It's a static site hosted free on GitHub Pages, so you can open it on any device, including your phone.
+A portfolio tracker for Indian investors covering mutual funds, stocks, ETFs, SGBs, bonds, gold, crypto and anything else. It shows current holdings at live prices and suggests tax-harvesting moves. It's a static site hosted free on GitHub Pages, so you can open it on any device, including your phone.
 
 **Privacy:** everything runs in your browser. Your transactions are saved in that browser's local storage and are never uploaded, and the repo contains no personal data. Each device keeps its own copy, so use **Data → Download backup / Restore backup** to move data between laptop and phone. Keep a recent backup, because browsers (especially Safari) can clear site data you haven't opened in a while.
 
 ## How it works
 
 - `site/` is the whole app (HTML, CSS and vanilla JS with no build step).
-- `.github/workflows/deploy.yml` runs on every push and nightly. It downloads AMFI's NAV file, builds `site/navs.json` (all schemes, NAVs and tax classes) and deploys `site/` to GitHub Pages.
-- In the browser, the app also fetches the latest NAVs for funds you hold from [mfapi.in](https://www.mfapi.in/). For units bought before February 2018 it fetches the 31-Jan-2018 NAV, used to raise their cost basis (grandfathering).
+- `.github/workflows/deploy.yml` runs on every push and nightly. It builds `site/navs.json` from AMFI (all mutual funds) and `site/stocks.json` from the NSE/BSE end-of-day files (every listed share, ETF, REIT, SGB and bond), then deploys `site/` to GitHub Pages. Both files cover the whole market, so they reveal nothing about your holdings.
+- In the browser, the app fetches live prices for what you hold: fresher MF NAVs from mfapi.in, gold/silver from gold-api.com and crypto from CoinGecko.
 
 ## Publish it (one-time)
 
@@ -42,18 +42,52 @@ Google tokens last 1 hour. After that, the header shows **Sync with Drive**, and
 python3 scripts/build_navs.py site/navs.json
 ```
 ```bash
+python3 scripts/build_prices.py site/stocks.json
+```
+```bash
 python3 -m http.server 8765
 ```
 Open http://localhost:8765/site/. The engine tests are at http://localhost:8765/tests/.
 
 ## CSV format
 
-| column | notes |
-|---|---|
-| `date` | `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY` or `DD-Mon-YYYY` |
-| `scheme_code` | AMFI scheme code. Use **Data → Find a scheme code**, or give an `isin` column instead |
-| `type` | `BUY`, `SIP`, `SWITCH_IN`, `REINVEST` / `SELL`, `REDEEM`, `SWITCH_OUT`, `SWP` |
-| `units`, `nav` | or `amount` with one of them |
+One row per buy or sell. The header row is required; column order doesn't matter, and lines starting with `#` are ignored. **Data → Download template** gives you a filled-in example.
+
+```csv
+date,asset_type,symbol,type,quantity,price,fees,name,tax_class
+2024-01-15,mf,122639,BUY,150.512,66.42,,,
+2024-03-04,stock,RELIANCE,BUY,10,1450.50,20,,
+2024-05-20,stock,GOLDBEES,BUY,100,55.10,10,,
+2023-11-10,gold,GOLD24,BUY,10,6200,,Gold coins,
+2025-01-05,crypto,BTC,BUY,0.01,8500000,85,,
+2025-02-01,foreign,AAPL,BUY,5,19500,,Apple Inc,
+2025-03-01,bond,XYZ-NCD-2028,BUY,10,10000,,XYZ Finance NCD,slab
+2026-06-15,stock,RELIANCE,SELL,5,1390,15,,
+```
+
+| column | required | notes |
+|---|---|---|
+| `date` | yes | `YYYY-MM-DD`, `DD-MM-YYYY`, `DD/MM/YYYY` or `DD-Mon-YYYY` |
+| `asset_type` | yes | `mf`, `stock`, `bond`, `gold`, `crypto`, `foreign` or `other` (see below) |
+| `symbol` | yes | identifies the holding; see the table below. Use **Data → Find a symbol** |
+| `type` | yes | `BUY` or `SELL` (also SIP, SWITCH_IN/OUT, REDEEM, BONUS, …) |
+| `quantity` | yes | units / shares / grams / coins. Bonus shares: `BUY` at price `0` |
+| `price` | yes | price **per unit in ₹** (or give `amount` instead of quantity/price) |
+| `fees` | no | total brokerage/charges for the row in ₹; added to cost on buys, taken off proceeds on sells |
+| `name` | no | display name for assets without a price feed |
+| `tax_class` | no | overrides the tax treatment: `equity`, `listed`, `other`, `debt`, `slab`, `vda` |
+
+| asset_type | symbol | live price from | default tax treatment |
+|---|---|---|---|
+| `mf` | AMFI scheme code, e.g. `122639` | AMFI + mfapi.in | from the fund's category (equity/debt/hybrid) |
+| `stock` | NSE symbol (`RELIANCE`), BSE code (`500325`) or ISIN. Also ETFs (`NIFTYBEES`, `GOLDBEES`), REITs, SGBs (`SGBJUN28`) | NSE/BSE previous close | equity; gold/intl ETFs & SGBs → listed; debt ETFs → debt |
+| `bond` | exchange symbol if listed, else any name | NSE/BSE if listed, else manual | listed (use `tax_class` = `slab` for unlisted bonds/MLDs) |
+| `gold` | `GOLD24`, `GOLD22`, `GOLD18`, `SILVER` (quantity in grams) | gold-api.com spot + Indian premium | unlisted (24 months) |
+| `crypto` | ticker (`BTC`, `ETH`, `SOL`) or CoinGecko id | CoinGecko | crypto: flat 30%, no loss set-off |
+| `foreign` | e.g. `AAPL` (enter prices in ₹) | manual (Settings → Manual prices) | unlisted (24 months) |
+| `other` | anything, e.g. `UNLISTED-NSE`, `PLOT-PUNE` | manual | unlisted (24 months) |
+
+Older mutual-fund CSVs (`scheme_code`/`isin`, `units`, `nav`) still import.
 
 ## Tax rules modelled (transfers after 23-Jul-2024)
 
@@ -63,6 +97,11 @@ Open http://localhost:8765/site/. The engine tests are at http://localhost:8765/
 | Debt (>65% debt), bought from 1-Apr-2023 | never | slab | slab |
 | Debt bought before 1-Apr-2023 | 24 months | slab | 12.5% |
 | Hybrid / FoF / gold / international | 24 months | slab | 12.5% |
+| Listed shares, equity ETFs, REITs/InvITs | 12 months | 20% | 12.5% above ₹1.25L/yr (shared with equity MFs) |
+| Gold/silver/intl ETFs, SGBs, listed bonds | 12 months | slab | 12.5% |
+| Physical gold/silver, foreign shares, unlisted assets | 24 months | slab | 12.5% |
+| Unlisted bonds, market-linked debentures | never | slab | slab |
+| Crypto (VDA) | n/a | 30% flat | 30% flat; losses can't be set off or carried forward |
 
 Losses are set off the way the tax return does it: short-term losses against any gain, long-term losses only against long-term gains. Set-off is mandatory, and leftover losses carry forward for 8 years. Redemptions are FIFO, ELSS lock-ins are respected, and pre-2018 equity units use the grandfathered cost. Surcharge is not modelled.
 
@@ -72,10 +111,12 @@ Losses are set off the way the tax return does it: short-term losses against any
 
 ```
 site/engine.js           FIFO ledger, tax set-off, harvesting suggestions, report (pure functions)
-site/app.js              UI, localStorage, NAV fetching, backup/restore
+site/app.js              UI, localStorage, backup/restore
+site/prices.js           price feeds (static files + live APIs)
 site/drive.js            Google sign-in + Drive file sync
 site/config.js           Google client ID
 scripts/build_navs.py    AMFI → navs.json (run by the workflow)
+scripts/build_prices.py  NSE/BSE bhavcopies → stocks.json (run by the workflow)
 tracker/nav.py           AMFI parser + fund tax classification
 tests/                   browser test runner for engine.js
 ```

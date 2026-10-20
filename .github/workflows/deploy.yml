@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    # AMFI publishes NAVs in the evening IST; 18:30 UTC = midnight IST, Mon–Sat.
+    # AMFI NAVs and exchange closing prices are out by late evening IST; 18:30 UTC = midnight IST, Mon–Sat.
     - cron: "30 18 * * 1-6"
   workflow_dispatch:
 
@@ -24,14 +24,18 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Build navs.json from AMFI
         run: python scripts/build_navs.py site/navs.json
+      - name: Build stocks.json from NSE/BSE bhavcopies
+        # Non-fatal: if the exchanges block the runner, the site still deploys (stock prices fall back).
+        continue-on-error: true
+        run: python scripts/build_prices.py site/stocks.json
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: site
       - id: deployment
